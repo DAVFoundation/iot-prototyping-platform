@@ -1,0 +1,4 @@
+paho-mqtt==1.4.0
+pyjwt==1.7.1
+cryptography==2.7
+tendo==0.2.15
