@@ -8,7 +8,7 @@ Mooving IoT project.
     * [Raspbian Buster Lite.](https://www.raspberrypi.org/downloads/raspbian/)
     * [Install Raspbian Buster Lite on SD card using Etcher.](https://www.raspberrypi.org/documentation/installation/installing-images/)
 
-2. Enable Linux console output via UART. Open the file: config.txt on SD card and write at the end of the file:
+2. Enable Linux console output via UART. Open the file `config.txt` on SD card and write at the end:
 
         enable_uart=1
 
