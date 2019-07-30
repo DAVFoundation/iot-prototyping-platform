@@ -38,7 +38,7 @@ class Logger:
         if prj_cfg.FILE_LOG_ENABLE and (Logger.__log_file == None):
             file_path_name = '{path}/log_{date}.log'.format(
                 path=prj_cfg.FILE_LOG_PATH,
-                date=datetime.datetime.now().strftime('%Y_%m_%d_T%H_%M_%S_%f'))
+                date=datetime.datetime.utcnow().strftime('%Y_%m_%d_T%H_%M_%S_%f'))
 
             with Logger.__file_lock:
                 try:
@@ -75,7 +75,7 @@ class Logger:
 
         with Logger.__print_lock:
             format_str = '[{date}] <{type}> "{module}": {value}'.format(
-                date=datetime.datetime.now().isoformat(),
+                date=datetime.datetime.utcnow().isoformat(),
                 module=self._module_name,
                 type=msg_type,
                 value=value)

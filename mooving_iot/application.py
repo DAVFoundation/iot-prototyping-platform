@@ -155,7 +155,7 @@ def start():
     while True:
         with _last_telemetry_packet_lock:
             _last_telemetry_packet = {
-                'timestamp': datetime.datetime.now().isoformat()
+                'timestamp': datetime.datetime.utcnow().isoformat()
             }
 
             _log.debug('Sending packet: {}'.format(str(_last_telemetry_packet)))
