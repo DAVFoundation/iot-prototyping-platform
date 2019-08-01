@@ -23,6 +23,9 @@ import mooving_iot.project_config as prj_cfg
 
 import mooving_iot.libraries.cloud.cloud as lib_cloud
 import mooving_iot.libraries.cloud.google_cloud_iot.google_cloud_iot as lib_google_cloud_iot
+import mooving_iot.libraries.cloud.cloud_protocol as lib_cloud_protocol
+
+import mooving_iot.libraries.device_config.device_config as lib_device_config
 
 
 #***************************************************************************************************
@@ -37,9 +40,11 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 # Drivers instances
 
 # Libraries instances
-_cloud: Union[lib_cloud.Cloud, None] = None
+_device_config = lib_device_config.DeviceConfig.get_instance()
 
 # Module variables
+_cloud: Union[lib_cloud.Cloud, None] = None
+
 _telemetry_send_event = threading.Event()
 
 _last_telemetry_packet_lock = threading.Lock()
@@ -93,7 +98,24 @@ def _command_processing_thread():
         cmd_json = _cloud.wait_for_command()
         _log.debug('Command json: {}'.format(cmd_json))
 
-        _telemetry_send_event.set()
+        cmd_packet = lib_cloud_protocol.CommandPacket(cmd_json)
+        cmd_dict = cmd_packet.get_dict()
+
+        if cmd_packet.is_valid():
+            if cmd_dict['command'] == 'set-intervals':
+                if 'lock' in cmd_dict['states']:
+                    param = lib_device_config.ConfigParam(
+                        'telemetryIntervalLock', cmd_dict['states']['lock'])
+                    _device_config.set_param(param)
+                if 'unlock' in cmd_dict['states']:
+                    param = lib_device_config.ConfigParam(
+                        'telemetryIntervalUnlock', cmd_dict['states']['unlock'])
+                    _device_config.set_param(param)
+                if 'unavailable' in cmd_dict['states']:
+                    param = lib_device_config.ConfigParam(
+                        'telemetryIntervalUnavailable', cmd_dict['states']['unavailable'])
+                    _device_config.set_param(param)
+            _telemetry_send_event.set()
 
 
 def _configuration_processing_thread():
@@ -135,6 +157,8 @@ def init():
         mqtt_url=args.mqtt_bridge_hostname,
         mqtt_port=args.mqtt_bridge_port)
 
+    _device_config.set_param(lib_device_config.ConfigParam("deviceId", conn_params.device_id))
+
     global _cloud
     _cloud = lib_cloud.Cloud(lib_google_cloud_iot.GoogleCloudIot, conn_params)
 
@@ -153,15 +177,30 @@ def init():
 # Application loop
 def start():
     while True:
+        state = "lock"
+        device_id = _device_config.get_param("deviceId").value
+
+        if state == "lock":
+            wait_time_max = _device_config.get_param("telemetryIntervalLock").value
+        elif state == "unlock":
+            wait_time_max = _device_config.get_param("telemetryIntervalUnlock").value
+        else:
+            wait_time_max = _device_config.get_param("telemetryIntervalUnavailable").value
+
         with _last_telemetry_packet_lock:
-            _last_telemetry_packet = {
-                'timestamp': datetime.datetime.utcnow().isoformat()
-            }
+            _last_telemetry_packet = lib_cloud_protocol.TelemetryPacket(
+                device_id=device_id,
+                interval=wait_time_max,
+                ext_batt=100,
+                int_batt=100,
+                longtitude=0,
+                latitude=0,
+                alarm=False,
+                state=state)
 
             _log.debug('Sending packet: {}'.format(str(_last_telemetry_packet)))
-            _cloud.send_event(_last_telemetry_packet)
+            _cloud.send_event(_last_telemetry_packet.to_map())
 
-        wait_time_max = 10
         _log.debug('Wait to next telemetry send event: {} sec'.format(wait_time_max))
 
         _telemetry_send_event.wait(wait_time_max)

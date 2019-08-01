@@ -88,7 +88,7 @@ class GoogleCloudIot(cloud.CloudImplementationBase):
         return conn_status
 
     def send_event(self, payload) -> int:
-        json_payload = json.dumps(payload)
+        json_payload = json.dumps(payload, indent=4)
         msg_info = self._mqtt_client.publish(self._mqtt_events_topic, json_payload, qos=0)
 
         _log.debug('Send event ID: {}, status: {}'.format(
