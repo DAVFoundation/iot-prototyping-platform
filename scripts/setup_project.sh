@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Set device time zone: UTC.
+sudo timedatectl set-timezone UTC
+
 # Update package lists.
 sudo apt-get update
 sudo yes | apt-get install software-properties-common

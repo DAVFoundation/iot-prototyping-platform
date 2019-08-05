@@ -62,13 +62,13 @@ class DeviceConfig:
         if instance_lock is DeviceConfig.__instance_lock:
             self._params_desc = [
                 ConfigParamDescription(
-                    ConfigParam(name='telemetryIntervalUnlock', value=5),
+                    ConfigParam(name='telemetryIntervalUnlock', value=15),
                     writable=True, max_value=1000, min_value=1),
                 ConfigParamDescription(
-                    ConfigParam(name='telemetryIntervalLock', value=10),
+                    ConfigParam(name='telemetryIntervalLock', value=60),
                     writable=True, max_value=1000, min_value=1),
                 ConfigParamDescription(
-                    ConfigParam(name='telemetryIntervalUnavailable', value=20),
+                    ConfigParam(name='telemetryIntervalUnavailable', value=60),
                     writable=True, max_value=1000, min_value=1),
                 ConfigParamDescription(
                     ConfigParam(name='deviceId', value="device_id"),

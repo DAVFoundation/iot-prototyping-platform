@@ -43,13 +43,13 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 _device_config = lib_device_config.DeviceConfig.get_instance()
 
 # Module variables
-_cloud: Union[lib_cloud.Cloud, None] = None
+_cloud : Union[lib_cloud.Cloud, None] = None
 
 _telemetry_send_event = threading.Event()
 
 _last_telemetry_packet_lock = threading.Lock()
-_last_telemetry_packet = None
-
+_last_telemetry_packet : Union[lib_cloud_protocol.TelemetryPacket, None] = None
+_last_telemetry_event : lib_cloud_protocol.Event = lib_cloud_protocol.EmptyEvent()
 
 
 #***************************************************************************************************
@@ -101,6 +101,8 @@ def _command_processing_thread():
         cmd_packet = lib_cloud_protocol.CommandPacket(cmd_json)
         cmd_dict = cmd_packet.get_dict()
 
+        global _last_telemetry_event
+
         if cmd_packet.is_valid():
             if cmd_dict['command'] == 'set-intervals':
                 if 'lock' in cmd_dict['states']:
@@ -115,6 +117,20 @@ def _command_processing_thread():
                     param = lib_device_config.ConfigParam(
                         'telemetryIntervalUnavailable', cmd_dict['states']['unavailable'])
                     _device_config.set_param(param)
+            elif cmd_dict['command'] == 'lock':
+                with _last_telemetry_packet_lock:
+                    _last_telemetry_event = lib_cloud_protocol.StateEvent('lock')
+            elif cmd_dict['command'] == 'unlock':
+                with _last_telemetry_packet_lock:
+                    _last_telemetry_event = lib_cloud_protocol.StateEvent('unlock')
+            elif cmd_dict['command'] == 'unavailable':
+                with _last_telemetry_packet_lock:
+                    _last_telemetry_event = lib_cloud_protocol.StateEvent('unavailable')
+            elif cmd_dict['command'] == 'beep':
+                pass
+            elif cmd_dict['command'] == 'alarm':
+                pass
+
             _telemetry_send_event.set()
 
 
@@ -187,6 +203,9 @@ def start():
         else:
             wait_time_max = _device_config.get_param("telemetryIntervalUnavailable").value
 
+        global _last_telemetry_packet
+        global _last_telemetry_event
+
         with _last_telemetry_packet_lock:
             _last_telemetry_packet = lib_cloud_protocol.TelemetryPacket(
                 device_id=device_id,
@@ -196,7 +215,10 @@ def start():
                 longtitude=0,
                 latitude=0,
                 alarm=False,
-                state=state)
+                state=state,
+                event=_last_telemetry_event)
+
+            _last_telemetry_event = lib_cloud_protocol.EmptyEvent()
 
             _log.debug('Sending packet: {}'.format(str(_last_telemetry_packet)))
             _cloud.send_event(_last_telemetry_packet.to_map())

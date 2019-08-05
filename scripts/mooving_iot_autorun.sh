@@ -12,4 +12,7 @@
 
 # Run Mooving IoT process.
 cd /home/pi/mooving-iot-firmware/scripts
-sudo sh run_project.sh
+while true
+do
+    sudo sh run_project.sh
+done
