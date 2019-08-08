@@ -25,3 +25,6 @@ sudo cp mooving_iot_autorun.sh /etc/init.d/
 cd /etc/init.d
 sudo chmod +x mooving_iot_autorun.sh
 sudo update-rc.d mooving_iot_autorun.sh defaults
+
+# Enable I2C1 peripheral module.
+sudo raspi-config nonint do_i2c 0

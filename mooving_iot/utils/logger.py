@@ -48,10 +48,7 @@ class Logger:
                     self.error('Cannot open file: {file}, error: {err}'
                         .format(file=file_path_name, err=err))
                 else:
-                    def close_log_file():
-                        if Logger.__log_file != None:
-                            Logger.__log_file.close()
-                    atexit.register(close_log_file)
+                    atexit.register(Logger.close_log_file)
 
     def error(self, value, *args):
         if self._is_log_enabled(prj_cfg.LogLevel.ERROR):
@@ -68,6 +65,11 @@ class Logger:
     def debug(self, value, *args):
         if self._is_log_enabled(prj_cfg.LogLevel.DEBUG):
             self._print(_MSG_TYPE_STR_DEBUG, value, *args)
+
+    @staticmethod
+    def close_log_file():
+        if Logger.__log_file != None:
+            Logger.__log_file.close()
 
     def _print(self, msg_type, value, *args):
         assert type(msg_type) is str, 'Value should be a string!'

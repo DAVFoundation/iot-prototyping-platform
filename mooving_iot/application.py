@@ -16,6 +16,7 @@ import argparse
 import threading
 import json
 from typing import Union
+import traceback
 
 # Local packages imports
 import mooving_iot.utils.logger as logger
@@ -25,7 +26,12 @@ import mooving_iot.libraries.cloud.cloud as lib_cloud
 import mooving_iot.libraries.cloud.google_cloud_iot.google_cloud_iot as lib_google_cloud_iot
 import mooving_iot.libraries.cloud.cloud_protocol as lib_cloud_protocol
 
+import mooving_iot.libraries.acc_threshold_detector.acc_threshold_detector as lib_acc_thr_detector
+
 import mooving_iot.libraries.device_config.device_config as lib_device_config
+
+import mooving_iot.drivers.acc.acc as drv_acc
+import mooving_iot.drivers.acc.lis2hh12.acc_lis2hh12 as drv_acc_lis2hh12
 
 
 #***************************************************************************************************
@@ -38,9 +44,11 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 # Private variables
 #***************************************************************************************************
 # Drivers instances
+_acc: Union[drv_acc.Acc, None] = None
 
 # Libraries instances
 _device_config = lib_device_config.DeviceConfig.get_instance()
+_acc_thr_detector : Union[lib_acc_thr_detector.AccThresholdDetector, None] = None
 
 # Module variables
 _cloud : Union[lib_cloud.Cloud, None] = None
@@ -94,63 +102,110 @@ def _parse_command_line_args():
 
 
 def _command_processing_thread():
-    while True:
-        cmd_json = _cloud.wait_for_command()
-        _log.debug('Command json: {}'.format(cmd_json))
+    try:
+        _log.debug('command_processing_thread started.')
 
-        cmd_packet = lib_cloud_protocol.CommandPacket(cmd_json)
-        cmd_dict = cmd_packet.get_dict()
+        while True:
+            cmd_json = _cloud.wait_for_command()
+            _log.debug('Command json: {}'.format(cmd_json))
 
-        global _last_telemetry_event
+            cmd_packet = lib_cloud_protocol.CommandPacket(cmd_json)
+            cmd_dict = cmd_packet.get_dict()
 
-        if cmd_packet.is_valid():
-            if cmd_dict['command'] == 'set-intervals':
-                if 'lock' in cmd_dict['states']:
-                    param = lib_device_config.ConfigParam(
-                        'telemetryIntervalLock', cmd_dict['states']['lock'])
-                    _device_config.set_param(param)
-                if 'unlock' in cmd_dict['states']:
-                    param = lib_device_config.ConfigParam(
-                        'telemetryIntervalUnlock', cmd_dict['states']['unlock'])
-                    _device_config.set_param(param)
-                if 'unavailable' in cmd_dict['states']:
-                    param = lib_device_config.ConfigParam(
-                        'telemetryIntervalUnavailable', cmd_dict['states']['unavailable'])
-                    _device_config.set_param(param)
-            elif cmd_dict['command'] == 'lock':
-                with _last_telemetry_packet_lock:
-                    _last_telemetry_event = lib_cloud_protocol.StateEvent('lock')
-            elif cmd_dict['command'] == 'unlock':
-                with _last_telemetry_packet_lock:
-                    _last_telemetry_event = lib_cloud_protocol.StateEvent('unlock')
-            elif cmd_dict['command'] == 'unavailable':
-                with _last_telemetry_packet_lock:
-                    _last_telemetry_event = lib_cloud_protocol.StateEvent('unavailable')
-            elif cmd_dict['command'] == 'beep':
-                pass
-            elif cmd_dict['command'] == 'alarm':
-                pass
+            global _last_telemetry_event
 
-            _telemetry_send_event.set()
+            if cmd_packet.is_valid():
+                if cmd_dict['command'] == 'set-intervals':
+                    if 'lock' in cmd_dict['states']:
+                        param = lib_device_config.ConfigParam(
+                            'telemetryIntervalLock', cmd_dict['states']['lock'])
+                        _device_config.set_param(param)
+                    if 'unlock' in cmd_dict['states']:
+                        param = lib_device_config.ConfigParam(
+                            'telemetryIntervalUnlock', cmd_dict['states']['unlock'])
+                        _device_config.set_param(param)
+                    if 'unavailable' in cmd_dict['states']:
+                        param = lib_device_config.ConfigParam(
+                            'telemetryIntervalUnavailable', cmd_dict['states']['unavailable'])
+                        _device_config.set_param(param)
+                elif cmd_dict['command'] == 'lock':
+                    with _last_telemetry_packet_lock:
+                        _last_telemetry_event = lib_cloud_protocol.StateEvent('lock')
+                elif cmd_dict['command'] == 'unlock':
+                    with _last_telemetry_packet_lock:
+                        _last_telemetry_event = lib_cloud_protocol.StateEvent('unlock')
+                elif cmd_dict['command'] == 'unavailable':
+                    with _last_telemetry_packet_lock:
+                        _last_telemetry_event = lib_cloud_protocol.StateEvent('unavailable')
+                elif cmd_dict['command'] == 'beep':
+                    pass
+                elif cmd_dict['command'] == 'alarm':
+                    pass
+
+                _telemetry_send_event.set()
+    except:
+        _log.error(traceback.format_exc())
+        logger.Logger.close_log_file()
+        os._exit(1)
 
 
 def _configuration_processing_thread():
-    while True:
-        cfg_json = _cloud.wait_for_configuration()
-        _log.debug('Configuration json: {}'.format(cfg_json))
+    try:
+        _log.debug('configuration_processing_thread started.')
 
-        _telemetry_send_event.set()
+        while True:
+            cfg_json = _cloud.wait_for_configuration()
+            _log.debug('Configuration json: {}'.format(cfg_json))
+
+            _telemetry_send_event.set()
+    except:
+        _log.error(traceback.format_exc())
+        logger.Logger.close_log_file()
+        os._exit(1)
 
 
 def _threshold_detection_thread():
-    _log.debug('threshold_detection_thread started.')
+    try:
+        _log.debug('threshold_detection_thread started.')
 
-    while True:
-        time.sleep(0.02)
+        acc_data_updated = _acc.get_data_updated_event()
+        is_acc_out_of_thr = False
+        is_angle_out_of_thr = False
+
+        while True:
+            # Accelerometer threshold detection
+            _acc_thr_detector.update()
+            is_acc_out_of_thr_new = _acc_thr_detector.is_acc_out_of_threshold()
+            is_angle_out_of_thr_new = _acc_thr_detector.is_angles_out_of_threshold()
+
+            if is_acc_out_of_thr_new != is_acc_out_of_thr:
+                _log.debug('Acc data out of threshold updated: {}'.format(is_acc_out_of_thr_new))
+                is_acc_out_of_thr = is_acc_out_of_thr_new
+
+            if is_angle_out_of_thr_new != is_angle_out_of_thr:
+                _log.debug('Angle out of threshold updated: {}'.format(is_angle_out_of_thr_new))
+                is_angle_out_of_thr = is_angle_out_of_thr_new
+
+            time.sleep(0.02)
+    except:
+        _log.error(traceback.format_exc())
+        logger.Logger.close_log_file()
+        os._exit(1)
 
 
 def _hw_init():
-    pass
+    # Accelerometer driver initialization.
+    global _acc
+    AccImplClass = drv_acc_lis2hh12.AccLis2hh12
+    _acc = drv_acc.Acc(AccImplClass, 0x1D)
+    _acc.start()
+
+
+def _lib_init():
+    global _acc_thr_detector
+    _acc_thr_detector = lib_acc_thr_detector.AccThresholdDetector(_acc)
+    _acc_thr_detector.set_acc_threshold(250, 100, 2000, 5)
+    _acc_thr_detector.set_angles_threshold(50, 2000)
 
 
 #***************************************************************************************************
@@ -160,6 +215,7 @@ def _hw_init():
 def init():
 
     _hw_init()
+    _lib_init()
 
     args = _parse_command_line_args()
 
