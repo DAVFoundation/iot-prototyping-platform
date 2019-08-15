@@ -17,6 +17,9 @@ sudo yes | apt-get install python3-pip
 # Install python external dependencies.
 sudo yes | pip3 install -r ../requirements.txt
 
+# Install pigpio service.
+sudo yes | sudo apt-get install pigpio python3-pigpio
+
 # Install openssl.
 sudo yes | apt-get install openssl
 

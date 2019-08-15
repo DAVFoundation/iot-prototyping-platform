@@ -11,7 +11,9 @@ import traceback
 
 # Project imports
 import mooving_iot.utils.logger as logger
+import mooving_iot.utils.exit as utils_exit
 import mooving_iot.project_config as prj_cfg
+
 import mooving_iot.drivers.acc.acc as acc
 
 
@@ -54,7 +56,8 @@ class ACC_REG_ID(enum.IntEnum):
 # Public classes
 #***************************************************************************************************
 class AccLis2hh12(acc.AccImplementationBase):
-    def __init__(self, i2c_addr):
+    def __init__(self, i2c_instance_num, i2c_addr):
+        self._i2c_instance_num = i2c_instance_num
         self._i2c_addr = i2c_addr
         self._acc_data_threshold_update_required = False
         self._acc_data_threshold = 2000
@@ -69,6 +72,8 @@ class AccLis2hh12(acc.AccImplementationBase):
         self._start_event = threading.Event()
         self._process_thread = threading.Thread(target=self._process_thread_func)
         self._process_thread.start()
+
+        utils_exit.register_on_exit(self.stop)
 
         _log.debug('AccLis2hh12 instance created.')
 
@@ -171,25 +176,24 @@ class AccLis2hh12(acc.AccImplementationBase):
                     time.sleep(0.1)
         except:
             _log.error(traceback.format_exc())
-            logger.Logger.close_log_file()
-            os._exit(1)
+            utils_exit.exit(1)
 
     def _read_register(self, register_id) -> int:
         write = smbus2.i2c_msg.write(self._i2c_addr, [register_id])
         read = smbus2.i2c_msg.read(self._i2c_addr, 1)
-        with smbus2.SMBusWrapper(1) as bus:
+        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
             bus.i2c_rdwr(write, read)
         return list(read)[0]
 
     def _write_register(self, register_id, value):
-        with smbus2.SMBusWrapper(1) as bus:
+        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
             write = smbus2.i2c_msg.write(self._i2c_addr, [register_id, value])
             bus.i2c_rdwr(write)
 
     def _read_acc_data(self) -> acc.AccData:
         write = smbus2.i2c_msg.write(self._i2c_addr, [ACC_REG_ID.OUT_X_L])
         read = smbus2.i2c_msg.read(self._i2c_addr, 6)
-        with smbus2.SMBusWrapper(1) as bus:
+        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
             bus.i2c_rdwr(write, read)
 
         raw_data = list(read)

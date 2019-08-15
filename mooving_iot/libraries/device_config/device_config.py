@@ -71,8 +71,29 @@ class DeviceConfig:
                     ConfigParam(name='telemetryIntervalUnavailable', value=60),
                     writable=True, max_value=1000, min_value=1),
                 ConfigParamDescription(
-                    ConfigParam(name='deviceId', value="device_id"),
-                    writable=True)
+                    ConfigParam(name='deviceId', value='device_id'),
+                    writable=True),
+                ConfigParamDescription(
+                    ConfigParam(name='deviceState', value='lock'),
+                    writable=True),
+                ConfigParamDescription(
+                    ConfigParam(name='accThresholdMg', value=250),
+                    writable=True, max_value=1999, min_value=1),
+                ConfigParamDescription(
+                    ConfigParam(name='accPeakDurationMs', value=100),
+                    writable=True, max_value=10000, min_value=0),
+                ConfigParamDescription(
+                    ConfigParam(name='accTotalDurationMs', value=2000),
+                    writable=True, max_value=100000, min_value=0),
+                ConfigParamDescription(
+                    ConfigParam(name='accPeakCount', value=5),
+                    writable=True, max_value=1000000, min_value=1),
+                ConfigParamDescription(
+                    ConfigParam(name='accAngleThresholdDegree', value=50),
+                    writable=True, max_value=89, min_value=1),
+                ConfigParamDescription(
+                    ConfigParam(name='accAngleTotalDurationMs', value=2000),
+                    writable=True, max_value=1000000, min_value=1)
             ]
 
             DeviceConfig.__instance = self

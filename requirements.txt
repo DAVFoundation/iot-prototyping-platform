@@ -3,3 +3,7 @@ pyjwt==1.7.1
 cryptography==2.7
 tendo==0.2.15
 smbus2==0.2.3
+RPi.GPIO==0.7.0
+pigpio==1.44
+rpi-ws281x==4.2.2
+adafruit-circuitpython-neopixel==3.3.7

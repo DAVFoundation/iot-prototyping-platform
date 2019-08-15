@@ -20,18 +20,26 @@ import traceback
 
 # Local packages imports
 import mooving_iot.utils.logger as logger
+import mooving_iot.utils.exit as utils_exit
 import mooving_iot.project_config as prj_cfg
+import mooving_iot.hw_config as hw_cfg
+
+import mooving_iot.drivers.acc.acc as drv_acc
+import mooving_iot.drivers.acc.lis2hh12.acc_lis2hh12 as drv_acc_lis2hh12
+import mooving_iot.drivers.relay.relay as drv_relay
+import mooving_iot.drivers.relay.adjh23005.relay_adjh23005 as drv_relay_adjh23005
+import mooving_iot.drivers.buzzer.buzzer as drv_buzzer
+import mooving_iot.drivers.buzzer.cpe267.buzzer_cpe267 as drv_buzzer_cpe267
+import mooving_iot.drivers.led_rgb.led_rgb as drv_led_rgb
+import mooving_iot.drivers.led_rgb.ws1812b.led_ws2812b as drv_led_ws2812b
 
 import mooving_iot.libraries.cloud.cloud as lib_cloud
 import mooving_iot.libraries.cloud.google_cloud_iot.google_cloud_iot as lib_google_cloud_iot
 import mooving_iot.libraries.cloud.cloud_protocol as lib_cloud_protocol
-
 import mooving_iot.libraries.acc_threshold_detector.acc_threshold_detector as lib_acc_thr_detector
-
 import mooving_iot.libraries.device_config.device_config as lib_device_config
-
-import mooving_iot.drivers.acc.acc as drv_acc
-import mooving_iot.drivers.acc.lis2hh12.acc_lis2hh12 as drv_acc_lis2hh12
+import mooving_iot.libraries.buzzer_pattern.buzzer_pattern as lib_buzzer_pattern
+import mooving_iot.libraries.led_rgb_pattern.led_rgb_pattern as lib_led_rgb_pattern
 
 
 #***************************************************************************************************
@@ -45,10 +53,15 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 #***************************************************************************************************
 # Drivers instances
 _acc: Union[drv_acc.Acc, None] = None
+_relay: Union[drv_relay.Relay, None] = None
+_buzzer: Union[drv_buzzer.Buzzer, None] = None
+_led_rgb: Union[drv_led_rgb.LedRgb, None] = None
 
 # Libraries instances
 _device_config = lib_device_config.DeviceConfig.get_instance()
 _acc_thr_detector : Union[lib_acc_thr_detector.AccThresholdDetector, None] = None
+_buzzer_pattern_gen : Union[lib_buzzer_pattern.BuzzerPatternGenerator, None] = None
+_led_rgb_pattern_gen : Union[lib_led_rgb_pattern.LedRgbPatternGenerator, None] = None
 
 # Module variables
 _cloud : Union[lib_cloud.Cloud, None] = None
@@ -128,25 +141,24 @@ def _command_processing_thread():
                         param = lib_device_config.ConfigParam(
                             'telemetryIntervalUnavailable', cmd_dict['states']['unavailable'])
                         _device_config.set_param(param)
-                elif cmd_dict['command'] == 'lock':
+                elif ((cmd_dict['command'] == 'lock')
+                    or (cmd_dict['command'] == 'unlock')
+                    or (cmd_dict['command'] == 'unavailable')):
                     with _last_telemetry_packet_lock:
-                        _last_telemetry_event = lib_cloud_protocol.StateEvent('lock')
-                elif cmd_dict['command'] == 'unlock':
-                    with _last_telemetry_packet_lock:
-                        _last_telemetry_event = lib_cloud_protocol.StateEvent('unlock')
-                elif cmd_dict['command'] == 'unavailable':
-                    with _last_telemetry_packet_lock:
-                        _last_telemetry_event = lib_cloud_protocol.StateEvent('unavailable')
+                        param = lib_device_config.ConfigParam('deviceState', cmd_dict['command'])
+                        _device_config.set_param(param)
+                        _last_telemetry_event = lib_cloud_protocol.StateEvent(cmd_dict['command'])
                 elif cmd_dict['command'] == 'beep':
-                    pass
+                    _buzzer_pattern_gen.start_pattern(lib_buzzer_pattern.BUZZER_PATTERN_ID.BEEP,
+                        cmd_dict['volume'])
                 elif cmd_dict['command'] == 'alarm':
-                    pass
+                    _buzzer_pattern_gen.start_pattern(lib_buzzer_pattern.BUZZER_PATTERN_ID.ALARM,
+                        cmd_dict['volume'])
 
                 _telemetry_send_event.set()
     except:
         _log.error(traceback.format_exc())
-        logger.Logger.close_log_file()
-        os._exit(1)
+        utils_exit.exit(1)
 
 
 def _configuration_processing_thread():
@@ -160,8 +172,7 @@ def _configuration_processing_thread():
             _telemetry_send_event.set()
     except:
         _log.error(traceback.format_exc())
-        logger.Logger.close_log_file()
-        os._exit(1)
+        utils_exit.exit(1)
 
 
 def _threshold_detection_thread():
@@ -189,23 +200,49 @@ def _threshold_detection_thread():
             time.sleep(0.02)
     except:
         _log.error(traceback.format_exc())
-        logger.Logger.close_log_file()
-        os._exit(1)
+        utils_exit.exit(1)
 
 
 def _hw_init():
-    # Accelerometer driver initialization.
     global _acc
     AccImplClass = drv_acc_lis2hh12.AccLis2hh12
-    _acc = drv_acc.Acc(AccImplClass, 0x1D)
+    _acc = drv_acc.Acc(AccImplClass, hw_cfg.ACC.I2C_INST_NUM, hw_cfg.ACC.I2C_ADDR)
     _acc.start()
+
+    global _relay
+    RelayImplClass = drv_relay_adjh23005.RelayAdjh23005
+    _relay = drv_relay.Relay(RelayImplClass, hw_cfg.RELAY.SET_PIN, hw_cfg.RELAY.RESET_PIN)
+    _relay.start(_device_config.get_param('deviceState').value == 'unlock')
+
+    global _buzzer
+    BuzzerImplClass = drv_buzzer_cpe267.BuzzerCpe267
+    _buzzer = drv_buzzer.Buzzer(BuzzerImplClass, hw_cfg.BUZZER.PWM_PIN)
+    _buzzer.start()
+
+    global _led_rgb
+    LedRgbImplClass = drv_led_ws2812b.LedWs2812b
+    _led_rgb = drv_led_rgb.LedRgb(LedRgbImplClass,
+        hw_cfg.LED_RGB.R_PIN, hw_cfg.LED_RGB.G_PIN, hw_cfg.LED_RGB.B_PIN)
+    _led_rgb.start()
 
 
 def _lib_init():
     global _acc_thr_detector
     _acc_thr_detector = lib_acc_thr_detector.AccThresholdDetector(_acc)
-    _acc_thr_detector.set_acc_threshold(250, 100, 2000, 5)
-    _acc_thr_detector.set_angles_threshold(50, 2000)
+    _acc_thr_detector.set_acc_threshold(
+        _device_config.get_param('accThresholdMg').value,
+        _device_config.get_param('accPeakDurationMs').value,
+        _device_config.get_param('accTotalDurationMs').value,
+        _device_config.get_param('accPeakCount').value)
+    _acc_thr_detector.set_angles_threshold(
+        _device_config.get_param('accAngleThresholdDegree').value,
+        _device_config.get_param('accAngleTotalDurationMs').value)
+
+    global _buzzer_pattern_gen
+    _buzzer_pattern_gen = lib_buzzer_pattern.BuzzerPatternGenerator(_buzzer)
+
+    global _led_rgb_pattern_gen
+    _led_rgb_pattern_gen = lib_led_rgb_pattern.LedRgbPatternGenerator(_led_rgb)
 
 
 #***************************************************************************************************
@@ -229,7 +266,7 @@ def init():
         mqtt_url=args.mqtt_bridge_hostname,
         mqtt_port=args.mqtt_bridge_port)
 
-    _device_config.set_param(lib_device_config.ConfigParam("deviceId", conn_params.device_id))
+    _device_config.set_param(lib_device_config.ConfigParam('deviceId', conn_params.device_id))
 
     global _cloud
     _cloud = lib_cloud.Cloud(lib_google_cloud_iot.GoogleCloudIot, conn_params)
@@ -248,16 +285,29 @@ def init():
 
 # Application loop
 def start():
-    while True:
-        state = "lock"
-        device_id = _device_config.get_param("deviceId").value
+    previous_state = None
 
-        if state == "lock":
-            wait_time_max = _device_config.get_param("telemetryIntervalLock").value
-        elif state == "unlock":
-            wait_time_max = _device_config.get_param("telemetryIntervalUnlock").value
+    while True:
+        state = _device_config.get_param('deviceState').value
+        device_id = _device_config.get_param('deviceId').value
+
+        if state == 'lock':
+            wait_time_max = _device_config.get_param('telemetryIntervalLock').value
+            if previous_state != state:
+                _relay.set_state(False)
+                _led_rgb_pattern_gen.start_pattern(lib_led_rgb_pattern.LED_RGB_PATTERN_ID.LOCKED)
+        elif state == 'unlock':
+            wait_time_max = _device_config.get_param('telemetryIntervalUnlock').value
+            if previous_state != state:
+                _relay.set_state(True)
+                _led_rgb_pattern_gen.start_pattern(lib_led_rgb_pattern.LED_RGB_PATTERN_ID.UNLOCKED)
         else:
-            wait_time_max = _device_config.get_param("telemetryIntervalUnavailable").value
+            wait_time_max = _device_config.get_param('telemetryIntervalUnavailable').value
+            if previous_state != state:
+                _relay.set_state(False)
+                _led_rgb_pattern_gen.stop_pattern()
+
+        previous_state = state
 
         global _last_telemetry_packet
         global _last_telemetry_event

@@ -12,6 +12,10 @@
 
 # Run Mooving IoT process.
 cd /home/pi/mooving-iot-firmware/scripts
+
+# Start pigpiod service.
+sudo pigpiod
+
 while true
 do
     sudo sh run_project.sh

@@ -27,7 +27,7 @@ class AccData:
 
 
 class AccImplementationBase:
-    def __init__(self, i2c_addr):
+    def __init__(self, i2c_instance_num, i2c_addr):
         _log.debug('AccImplementationBase instance created.')
 
     def start(self):
@@ -50,8 +50,8 @@ class AccImplementationBase:
 
 
 class Acc:
-    def __init__(self, AccImplCls, i2c_addr):
-        self._acc_impl: AccImplementationBase = AccImplCls(i2c_addr)
+    def __init__(self, AccImplCls, i2c_instance_num, i2c_addr):
+        self._acc_impl: AccImplementationBase = AccImplCls(i2c_instance_num, i2c_addr)
 
         _log.debug('Acc instance created.')
 

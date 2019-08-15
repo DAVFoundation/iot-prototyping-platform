@@ -4,11 +4,11 @@
 # Global packages imports
 import datetime
 import os
-import atexit
 import threading
 
 # Local packages imports
 import mooving_iot.project_config as prj_cfg
+import mooving_iot.utils.exit as utils_exit
 
 
 #***************************************************************************************************
@@ -48,7 +48,7 @@ class Logger:
                     self.error('Cannot open file: {file}, error: {err}'
                         .format(file=file_path_name, err=err))
                 else:
-                    atexit.register(Logger.close_log_file)
+                    utils_exit.register_on_exit(Logger.close_log_file)
 
     def error(self, value, *args):
         if self._is_log_enabled(prj_cfg.LogLevel.ERROR):
