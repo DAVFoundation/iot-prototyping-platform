@@ -27,7 +27,7 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 # Public classes
 #***************************************************************************************************
 class RelayAdjh23005(relay.RelayImplementationBase):
-    STATE_CHANGE_TIME = 0.025
+    STATE_CHANGE_TIME = 0.05
 
     def __init__(self, set_pin, reset_pin):
         self._set_pin = set_pin

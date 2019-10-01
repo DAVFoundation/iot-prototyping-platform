@@ -6,10 +6,12 @@ import os
 import threading
 import math
 import time
+import traceback
 
 # Project imports
 import mooving_iot.utils.logger as logger
 import mooving_iot.project_config as prj_cfg
+import mooving_iot.utils.exit as utils_exit
 
 import mooving_iot.drivers.acc.acc as drv_acc
 
@@ -55,80 +57,100 @@ class AccThresholdDetector:
         self._angle_threshold_degree = None
         self._angle_total_duration_ms = None
 
+        self._data_lock = threading.Lock()
+        self._update_thread = threading.Thread(target=self._update)
+        self._update_thread.start()
+
     def set_acc_threshold(self, threshold_mg, peak_duration_ms, total_duration_ms, peak_count):
-        self._acc_driver.set_acc_threshold(threshold_mg, peak_duration_ms)
-        self._acc_total_duration_ms = total_duration_ms
-        self._acc_peak_count = peak_count
+        with self._data_lock:
+            self._acc_driver.set_acc_threshold(threshold_mg, peak_duration_ms)
+            self._acc_total_duration_ms = total_duration_ms
+            self._acc_peak_count = peak_count
 
     def set_angles_threshold(self, threshold_degree, total_duration_ms):
-        self._angle_threshold_degree = threshold_degree
-        self._angle_total_duration_ms = total_duration_ms
+        with self._data_lock:
+            self._angle_threshold_degree = threshold_degree
+            self._angle_total_duration_ms = total_duration_ms
 
     def get_angles(self) -> AccAngles:
-        return self._acc_angles
+        with self._data_lock:
+            return self._acc_angles
 
     def is_acc_out_of_threshold(self) -> bool:
-        if self._acc_peak_count != None:
-            current_time_ms = int(time.time() * 1000)
-            end_time_ms = self._acc_out_of_thr_start_time_ms + self._acc_total_duration_ms
+        with self._data_lock:
+            if self._acc_peak_count != None:
+                current_time_ms = int(time.time() * 1000)
+                end_time_ms = self._acc_out_of_thr_start_time_ms + self._acc_total_duration_ms
 
-            if current_time_ms > end_time_ms:
-                self._is_acc_out_of_thr = self._acc_out_of_thr_peak_count >= self._acc_peak_count
-                self._acc_out_of_thr_start_time_ms = current_time_ms
-                self._acc_out_of_thr_peak_count = 0
+                if current_time_ms > end_time_ms:
+                    self._is_acc_out_of_thr = self._acc_out_of_thr_peak_count >= self._acc_peak_count
+                    self._acc_out_of_thr_start_time_ms = current_time_ms
+                    self._acc_out_of_thr_peak_count = 0
 
-            return self._is_acc_out_of_thr
-        else:
-            return False
+                return self._is_acc_out_of_thr
+            else:
+                return False
 
     def is_angles_out_of_threshold(self) -> bool:
-        if ((self._angle_out_of_thr_start_time_ms == None) or
-            (self._angle_total_duration_ms == None)):
-            return False
-        else:
-            current_time_ms = int(time.time() * 1000)
-            return ((self._angle_out_of_thr_start_time_ms + self._angle_total_duration_ms)
-                <= current_time_ms)
-
-    def update(self):
-        acc_data_updated = self._acc_driver.get_data_updated_event()
-
-        if acc_data_updated.isSet():
-            acc_data_updated.clear()
-            self._last_acc_data = self._acc_driver.get_last_data()
-            is_acc_data_threshold = self._acc_driver.is_acc_out_of_threshold()
-            current_time_ms = int(time.time() * 1000)
-
-            _log.debug(
-                'Acc data updated: x = {x} mg, y = {y} mg, z = {z} mg. Out of threshold: {thr}.'
-                .format(
-                    x=self._last_acc_data.x_mg,
-                    y=self._last_acc_data.y_mg,
-                    z=self._last_acc_data.z_mg,
-                    thr=is_acc_data_threshold))
-
-            self._calculate_angles()
-
-            _log.debug(
-                'Acc angles updated: x = {x}, y = {y}, z = {z}.'
-                .format(
-                    x=self._acc_angles.x,
-                    y=self._acc_angles.y,
-                    z=self._acc_angles.z))
-
-            if self._calc_is_angles_out_of_thr():
-                self._angle_out_of_thr_stop_time_ms = None
-                if self._angle_out_of_thr_start_time_ms == None:
-                    self._angle_out_of_thr_start_time_ms = current_time_ms
+        with self._data_lock:
+            if ((self._angle_out_of_thr_start_time_ms == None) or
+                (self._angle_total_duration_ms == None)):
+                return False
             else:
-                if self._angle_out_of_thr_stop_time_ms == None:
-                    self._angle_out_of_thr_stop_time_ms = current_time_ms
-                elif ((self._angle_out_of_thr_stop_time_ms + self._angle_total_duration_ms)
-                    <= current_time_ms):
-                    self._angle_out_of_thr_start_time_ms = None
+                current_time_ms = int(time.time() * 1000)
+                return ((self._angle_out_of_thr_start_time_ms + self._angle_total_duration_ms)
+                    <= current_time_ms)
 
-            if (self._acc_peak_count != None) and is_acc_data_threshold:
-                self._acc_out_of_thr_peak_count += 1
+    def clear(self):
+        with self._data_lock:
+            self._angle_out_of_thr_start_time_ms = None
+            self._acc_out_of_thr_peak_count = 0
+
+    def _update(self):
+        try:
+            acc_data_updated = self._acc_driver.get_data_updated_event()
+
+            while True:
+                acc_data_updated.wait()
+                acc_data_updated.clear()
+                with self._data_lock:
+                    self._last_acc_data = self._acc_driver.get_last_data()
+                    is_acc_data_threshold = self._acc_driver.is_acc_out_of_threshold()
+                    current_time_ms = int(time.time() * 1000)
+
+                    _log.debug(
+                        'Acc data updated: x = {x} mg, y = {y} mg, z = {z} mg. Out of threshold: {thr}.'
+                        .format(
+                            x=self._last_acc_data.x_mg,
+                            y=self._last_acc_data.y_mg,
+                            z=self._last_acc_data.z_mg,
+                            thr=is_acc_data_threshold))
+
+                    self._calculate_angles()
+
+                    _log.debug(
+                        'Acc angles updated: x = {x}, y = {y}, z = {z}.'
+                        .format(
+                            x=self._acc_angles.x,
+                            y=self._acc_angles.y,
+                            z=self._acc_angles.z))
+
+                    if self._calc_is_angles_out_of_thr():
+                        self._angle_out_of_thr_stop_time_ms = None
+                        if self._angle_out_of_thr_start_time_ms == None:
+                            self._angle_out_of_thr_start_time_ms = current_time_ms
+                    else:
+                        if self._angle_out_of_thr_stop_time_ms == None:
+                            self._angle_out_of_thr_stop_time_ms = current_time_ms
+                        elif ((self._angle_out_of_thr_stop_time_ms + self._angle_total_duration_ms)
+                            <= current_time_ms):
+                            self._angle_out_of_thr_start_time_ms = None
+
+                    if (self._acc_peak_count != None) and is_acc_data_threshold:
+                        self._acc_out_of_thr_peak_count += 1
+        except:
+            _log.error(traceback.format_exc())
+            utils_exit.exit(1)
 
     def _calculate_angles(self):
         x_pow2 = self._last_acc_data.x_mg ** 2

@@ -5,6 +5,7 @@
 import os
 import jwt
 import datetime
+import time
 import paho.mqtt.client as mqttc
 import threading
 import json
@@ -70,20 +71,29 @@ class GoogleCloudIot(cloud.CloudImplementationBase):
         _log.info('MQTT configuration topic: {}'.format(self._mqtt_config_topic))
         _log.debug('GoogleCloudIot instance created.')
 
-    def create_connection(self) -> int:
-        self._jwt_expire_timer = threading.Timer(self._jwt_expire_time_sec, self._jwt_expired)
-        self._jwt_expire_timer.start()
-
+    def create_connection(self, start_loop=True) -> int:
         self._mqtt_client.username_pw_set(
             username='unused',
             password=self._create_jwt())
 
-        conn_status = self._mqtt_client.connect(
-            self._cloud_conn_params.mqtt_url,
-            self._cloud_conn_params.mqtt_port)
+        is_failure = True
+        while is_failure:
+            try:
+                conn_status = self._mqtt_client.connect(
+                    self._cloud_conn_params.mqtt_url,
+                    self._cloud_conn_params.mqtt_port)
 
-        self._mqtt_client.loop_start()
+                is_failure = False
+            except:
+                _log.info('Failed to connect.')
+                time.sleep(5)
+
+        if start_loop:
+            self._mqtt_client.loop_start()
         _log.info('Connect to cloud, status: {}'.format(mqttc.error_string(conn_status)))
+
+        self._jwt_expire_timer = threading.Timer(self._jwt_expire_time_sec, self._jwt_expired)
+        self._jwt_expire_timer.start()
 
         return conn_status
 
@@ -103,27 +113,8 @@ class GoogleCloudIot(cloud.CloudImplementationBase):
         return self._config_queue.get(True, None)
 
     def _jwt_expired(self):
-        self._jwt_expire_timer = threading.Timer(self._jwt_expire_time_sec, self._jwt_expired)
-        self._jwt_expire_timer.start()
-
         _log.debug('GoogleCloudIot _jwt_expired called.')
-
         disconn_status = self._mqtt_client.disconnect()
-        self._mqtt_client.loop_stop()
-
-        _log.info('Disconnect from cloud, status: {}'.format(mqttc.error_string(disconn_status)))
-
-        self._mqtt_client.username_pw_set(
-            username='unused',
-            password=self._create_jwt())
-
-        conn_status = self._mqtt_client.connect(
-            self._cloud_conn_params.mqtt_url,
-            self._cloud_conn_params.mqtt_port)
-
-        self._mqtt_client.loop_start()
-
-        _log.info('Connect to cloud, status: {}'.format(mqttc.error_string(conn_status)))
 
     def _create_jwt(self):
         current_time_utc = datetime.datetime.utcnow()
@@ -149,6 +140,7 @@ class GoogleCloudIot(cloud.CloudImplementationBase):
 
     def _on_disconnect(self, client, userdata, rc):
         _log.debug('on_disconnect event, status: {}'.format(mqttc.error_string(rc)))
+        self.create_connection(False)
 
     def _on_publish(self, client, userdata, mid):
         _log.debug('_on_publish event, event ID: {}.'.format(mid))

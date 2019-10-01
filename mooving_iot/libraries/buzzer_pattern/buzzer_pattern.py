@@ -27,15 +27,78 @@ _log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
 #***************************************************************************************************
 # Private variables
 #***************************************************************************************************
+_BUZZER_HIGH_TONE_FREQ = 3300
+_BUZZER_LOW_TONE_FREQ = 2300
+
+_DUTY_CYCLE_OFF = 0
+
+if prj_cfg.DEBUG:
+    _DUTY_CYCLE_LOW = 5
+    _DUTY_CYCLE_MEDIUM = 10
+    _DUTY_CYCLE_HIGH = 15
+else:
+    _DUTY_CYCLE_LOW = 15
+    _DUTY_CYCLE_MEDIUM = 30
+    _DUTY_CYCLE_HIGH = 50
+
 _alarm_pattern = [
-    drv_buzzer.BuzzerEvent(100, 1),
-    drv_buzzer.BuzzerEvent(0, 0.2)]
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2)]
 
 _beep_pattern = [
-    drv_buzzer.BuzzerEvent(100, 1),
-    drv_buzzer.BuzzerEvent(0, 1),
-    drv_buzzer.BuzzerEvent(100, 1, 3200),
-    drv_buzzer.BuzzerEvent(0, 1)]
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.3, _BUZZER_LOW_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.3, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.3, _BUZZER_LOW_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 1)]
+
+_lock_pattern = [
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.3, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.3, _BUZZER_LOW_TONE_FREQ)]
+
+_unlock_pattern = [
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.3, _BUZZER_LOW_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.3, _BUZZER_HIGH_TONE_FREQ)]
+
+_alarm_pattern_phase_1 = [
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_LOW, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2)]
+
+_alarm_pattern_phase_2 = [
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_MEDIUM, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2)]
+
+_alarm_pattern_phase_3 = [
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 0.2),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_HIGH, 0.8, _BUZZER_HIGH_TONE_FREQ),
+    drv_buzzer.BuzzerEvent(_DUTY_CYCLE_OFF, 5.2)]
+
+
+#***************************************************************************************************
+# Public variables
+#***************************************************************************************************
+VOLUME_OFF = _DUTY_CYCLE_OFF * 2
+VOLUME_LOW = _DUTY_CYCLE_LOW * 2
+VOLUME_MEDIUM = _DUTY_CYCLE_MEDIUM * 2
+VOLUME_HIGH = _DUTY_CYCLE_HIGH * 2
+
+PATTERN_REPEAT_FOREVER = 0xFFFFFFFF
 
 
 #***************************************************************************************************
@@ -44,24 +107,34 @@ _beep_pattern = [
 class BUZZER_PATTERN_ID(enum.IntEnum):
     BEEP = 0
     ALARM = 1
+    LOCKED = 2
+    UNLOCKED = 3
+    ALARM_PHASE_1 = 4
+    ALARM_PHASE_2 = 5
+    ALARM_PHASE_3 = 6
 
 
 class BuzzerPatternGenerator:
     _PATTERNS_TABLE = {
         BUZZER_PATTERN_ID.ALARM: _alarm_pattern,
-        BUZZER_PATTERN_ID.BEEP: _beep_pattern
+        BUZZER_PATTERN_ID.BEEP: _beep_pattern,
+        BUZZER_PATTERN_ID.LOCKED: _lock_pattern,
+        BUZZER_PATTERN_ID.UNLOCKED: _unlock_pattern,
+        BUZZER_PATTERN_ID.ALARM_PHASE_1: _alarm_pattern_phase_1,
+        BUZZER_PATTERN_ID.ALARM_PHASE_2: _alarm_pattern_phase_2,
+        BUZZER_PATTERN_ID.ALARM_PHASE_3: _alarm_pattern_phase_3
     }
 
     def __init__(self, buzzer_driver : drv_buzzer.Buzzer):
         self._buzzer_driver = buzzer_driver
-        self._pattern_repeate_count = None
+        self._pattern_repeate_count = 0
         self._current_pattern = None
         self._current_pattern_volume = 0
 
         self._pattern_thread : Union[threading.Thread, None] = None
         self._pattern_thread_stop = False
 
-    def start_pattern(self, pattern_id, volume, repeate_count=None):
+    def start_pattern(self, pattern_id, volume=None, repeate_count=0):
         self.stop_pattern()
 
         if volume == 0:
@@ -91,16 +164,18 @@ class BuzzerPatternGenerator:
         try:
             while True:
                 for event in self._current_pattern:
-                    duty_cycle_volume = 0
-                    if event.duty_cycle > 0:
-                        duty_cycle_volume = self._current_pattern_volume / 2.0
-                    event_copy = drv_buzzer.BuzzerEvent(duty_cycle_volume, event.time, event.frequency)
+                    duty_cycle = _DUTY_CYCLE_OFF
+                    if event.duty_cycle != _DUTY_CYCLE_OFF:
+                        if self._current_pattern_volume != None:
+                            duty_cycle = self._current_pattern_volume / 2.0
+                        else:
+                            duty_cycle = event.duty_cycle
+                    event_copy = drv_buzzer.BuzzerEvent(duty_cycle, event.time, event.frequency)
                     self._buzzer_driver.set_event(event_copy)
 
-                if self._pattern_repeate_count != None:
-                    self._pattern_repeate_count -= 1
-                    if self._pattern_repeate_count < 0:
-                        return
+                self._pattern_repeate_count -= 1
+                if self._pattern_repeate_count < 0:
+                    return
                 if self._pattern_thread_stop:
                     return
         except:

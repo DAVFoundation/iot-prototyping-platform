@@ -2,33 +2,22 @@
 # Imports
 #***************************************************************************************************
 # Global packages imports
-import enum
+import datetime
 import os
+import threading
+
+# Local packages imports
+import mooving_iot.project_config as prj_cfg
 
 
 #***************************************************************************************************
-# Constants
+# Private variables
 #***************************************************************************************************
-# Logging level constants
-class LogLevel(enum.IntEnum):
-    NONE = 0
-    ERROR = 1
-    WARNING = 2
-    INFO = 3
-    DEBUG = 4
+_i2c_lock = threading.Lock()
 
 
 #***************************************************************************************************
-# Configuration
+# Public functions
 #***************************************************************************************************
-# Debug mode ON flag
-DEBUG = True
-
-# Global logging level
-GLOBAL_LOG_LEVEL = LogLevel.DEBUG if DEBUG else LogLevel.INFO
-# Enable logging in file
-FILE_LOG_ENABLE = True
-# Log file path and name
-FILE_LOG_PATH = '{current_dir}/../logs'.format(current_dir=os.path.dirname(__file__))
-# Config file path and name
-FILE_CONFIG_PATH = '{current_dir}/../config'.format(current_dir=os.path.dirname(__file__))
+def i2c_get_lock() -> threading.Lock:
+    return _i2c_lock

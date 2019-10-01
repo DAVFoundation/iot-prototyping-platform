@@ -51,6 +51,7 @@ class BuzzerCpe267(buzzer.BuzzerImplementationBase):
     def stop(self):
         self._start_event.clear()
 
+        self._pigpio.hardware_PWM(self._pwm_pin, 2500, 0)
         self._pigpio.stop()
 
     def set_event(self, event : buzzer.BuzzerEvent):

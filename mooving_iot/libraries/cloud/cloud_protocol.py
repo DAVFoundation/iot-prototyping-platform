@@ -39,6 +39,7 @@ class EmptyEvent(Event):
     def to_map(self) -> dict:
         return {}
 
+
 class StateEvent(Event):
     def __init__(self, state : str):
         self._state = state
@@ -48,14 +49,67 @@ class StateEvent(Event):
             'type': self._state
         }
 
+
+class ChargingEvent(Event):
+    def __init__(self, is_charging : bool):
+        self._is_charging = is_charging
+
+    def to_map(self) -> dict:
+        return {
+            'charging': 'true' if self._is_charging else 'false'
+        }
+
+
+class AccMovementEvent(Event):
+    def __init__(self, is_moving : bool):
+        self._is_moving = is_moving
+
+    def to_map(self) -> dict:
+        return {
+            'accMoving': 'true' if self._is_moving else 'false'
+        }
+
+
+class AccFallEvent(Event):
+    def __init__(self, is_fall : bool):
+        self._is_fall = is_fall
+
+    def to_map(self) -> dict:
+        return {
+            'accFall': 'true' if self._is_fall else 'false'
+        }
+
+
+class ExtBattEvent(Event):
+    def __init__(self, voltage : float):
+        self._voltage = voltage
+
+    def to_map(self) -> dict:
+        return {
+            'batteryVoltage': round(self._voltage, 3)
+        }
+
+
+class IntBattEvent(Event):
+    def __init__(self, voltage : float):
+        self._voltage = voltage
+
+    def to_map(self) -> dict:
+        return {
+            'internalBatteryVoltage': round(self._voltage, 3)
+        }
+
+
 class TelemetryPacket:
     def __init__(self,
-        device_id, interval, ext_batt, int_batt, longtitude, latitude, alarm, state,
+        device_id, interval, ext_batt, int_batt, ext_batt_charging,
+        longtitude, latitude, alarm, state,
         event : Event=EmptyEvent()):
         self._device_id = device_id
         self._interval = interval
         self._ext_batt = ext_batt
         self._int_batt = int_batt
+        self._ext_batt_charging = ext_batt_charging
         self._longtitude = longtitude
         self._latitude = latitude
         self._alarm = alarm
@@ -71,14 +125,16 @@ class TelemetryPacket:
             'deviceId': self._device_id,
             'interval': self._interval,
             'timestamp': self._timestamp_utc,
-            'batteryPercentage': self._ext_batt,
-            'internalBatteryPercentage': self._int_batt,
+            'batteryVoltage': round(self._ext_batt, 3),
+            'internalBatteryVoltage': round(self._int_batt, 3),
+            'charging': 'true' if self._ext_batt_charging else 'false',
             'longitude': self._longtitude,
             'latitude': self._latitude,
-            'alarm': self._alarm,
+            'alarm': 'true' if self._alarm else 'false',
             'state': self._state,
             'event': self._event.to_map()
         }
+
 
 class CommandPacket:
     def __init__(self, cmd_json : str):

@@ -7,3 +7,4 @@ RPi.GPIO==0.7.0
 pigpio==1.44
 rpi-ws281x==4.2.2
 adafruit-circuitpython-neopixel==3.3.7
+adafruit-circuitpython-ads1x15==2.1.1

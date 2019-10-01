@@ -37,6 +37,12 @@ _locked_pattern = [
 
 
 #***************************************************************************************************
+# Public variables
+#***************************************************************************************************
+PATTERN_REPEAT_FOREVER = 0xFFFFFFFF
+
+
+#***************************************************************************************************
 # Public classes
 #***************************************************************************************************
 class LED_RGB_PATTERN_ID(enum.IntEnum):
@@ -52,13 +58,13 @@ class LedRgbPatternGenerator:
 
     def __init__(self, led_rgb_driver : drv_led_rgb.LedRgb):
         self._led_rgb_driver = led_rgb_driver
-        self._pattern_repeate_count = None
+        self._pattern_repeate_count = 0
         self._current_pattern = None
 
         self._pattern_thread : Union[threading.Thread, None] = None
         self._pattern_thread_stop = False
 
-    def start_pattern(self, pattern_id, repeate_count=None):
+    def start_pattern(self, pattern_id, repeate_count=0):
         self.stop_pattern()
 
         self._pattern_repeate_count = repeate_count
@@ -86,10 +92,9 @@ class LedRgbPatternGenerator:
                 for event in self._current_pattern:
                     self._led_rgb_driver.set_event(event)
 
-                if self._pattern_repeate_count != None:
-                    self._pattern_repeate_count -= 1
-                    if self._pattern_repeate_count < 0:
-                        return
+                self._pattern_repeate_count -= 1
+                if self._pattern_repeate_count < 0:
+                    return
                 if self._pattern_thread_stop:
                     return
         except:

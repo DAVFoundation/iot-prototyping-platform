@@ -11,6 +11,7 @@ import traceback
 
 # Project imports
 import mooving_iot.utils.logger as logger
+import mooving_iot.utils.i2c_lock as i2c_lock
 import mooving_iot.utils.exit as utils_exit
 import mooving_iot.project_config as prj_cfg
 
@@ -122,7 +123,7 @@ class AccLis2hh12(acc.AccImplementationBase):
     def stop(self):
         self._start_event.clear()
         self._data_event.clear()
-        # TODO: deinit acc
+        self._write_register(ACC_REG_ID.CTRL6, 0x80)
 
     def get_last_data(self) -> acc.AccData:
         with self._data_lock:
@@ -181,20 +182,29 @@ class AccLis2hh12(acc.AccImplementationBase):
     def _read_register(self, register_id) -> int:
         write = smbus2.i2c_msg.write(self._i2c_addr, [register_id])
         read = smbus2.i2c_msg.read(self._i2c_addr, 1)
-        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
-            bus.i2c_rdwr(write, read)
+
+        i2c_lock_obj = i2c_lock.i2c_get_lock()
+        with i2c_lock_obj:
+            with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
+                bus.i2c_rdwr(write, read)
         return list(read)[0]
 
     def _write_register(self, register_id, value):
-        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
-            write = smbus2.i2c_msg.write(self._i2c_addr, [register_id, value])
-            bus.i2c_rdwr(write)
+        write = smbus2.i2c_msg.write(self._i2c_addr, [register_id, value])
+
+        i2c_lock_obj = i2c_lock.i2c_get_lock()
+        with i2c_lock_obj:
+            with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
+                bus.i2c_rdwr(write)
 
     def _read_acc_data(self) -> acc.AccData:
         write = smbus2.i2c_msg.write(self._i2c_addr, [ACC_REG_ID.OUT_X_L])
         read = smbus2.i2c_msg.read(self._i2c_addr, 6)
-        with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
-            bus.i2c_rdwr(write, read)
+
+        i2c_lock_obj = i2c_lock.i2c_get_lock()
+        with i2c_lock_obj:
+            with smbus2.SMBusWrapper(self._i2c_instance_num) as bus:
+                bus.i2c_rdwr(write, read)
 
         raw_data = list(read)
         return acc.AccData(
