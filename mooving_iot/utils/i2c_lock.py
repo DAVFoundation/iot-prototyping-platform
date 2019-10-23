@@ -2,20 +2,22 @@
 # Imports
 #***************************************************************************************************
 # Global packages imports
+import datetime
 import os
+import threading
 
 # Local packages imports
-import mooving_iot.utils.logger as logger
 import mooving_iot.project_config as prj_cfg
 
 
 #***************************************************************************************************
-# Module logger
+# Private variables
 #***************************************************************************************************
-_log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
+_i2c_lock = threading.Lock()
 
 
 #***************************************************************************************************
-# Init startup point
+# Public functions
 #***************************************************************************************************
-_log.debug('__init__.py completed.')
+def i2c_get_lock() -> threading.Lock:
+    return _i2c_lock

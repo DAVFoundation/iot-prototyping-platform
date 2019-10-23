@@ -30,3 +30,5 @@ GLOBAL_LOG_LEVEL = LogLevel.DEBUG if DEBUG else LogLevel.INFO
 FILE_LOG_ENABLE = False
 # Log file path and name
 FILE_LOG_PATH = '{current_dir}/../logs'.format(current_dir=os.path.dirname(__file__))
+# Config file path and name
+FILE_CONFIG_PATH = '{current_dir}/../config'.format(current_dir=os.path.dirname(__file__))

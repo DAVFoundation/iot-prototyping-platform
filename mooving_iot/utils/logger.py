@@ -4,11 +4,11 @@
 # Global packages imports
 import datetime
 import os
-import atexit
 import threading
 
 # Local packages imports
 import mooving_iot.project_config as prj_cfg
+import mooving_iot.utils.exit as utils_exit
 
 
 #***************************************************************************************************
@@ -38,7 +38,7 @@ class Logger:
         if prj_cfg.FILE_LOG_ENABLE and (Logger.__log_file == None):
             file_path_name = '{path}/log_{date}.log'.format(
                 path=prj_cfg.FILE_LOG_PATH,
-                date=datetime.datetime.now().strftime('%Y_%m_%d_T%H_%M_%S_%f'))
+                date=datetime.datetime.utcnow().strftime('%Y_%m_%d_T%H_%M_%S_%f'))
 
             with Logger.__file_lock:
                 try:
@@ -48,10 +48,7 @@ class Logger:
                     self.error('Cannot open file: {file}, error: {err}'
                         .format(file=file_path_name, err=err))
                 else:
-                    def close_log_file():
-                        if Logger.__log_file != None:
-                            Logger.__log_file.close()
-                    atexit.register(close_log_file)
+                    utils_exit.register_on_exit(Logger.close_log_file)
 
     def error(self, value, *args):
         if self._is_log_enabled(prj_cfg.LogLevel.ERROR):
@@ -69,13 +66,18 @@ class Logger:
         if self._is_log_enabled(prj_cfg.LogLevel.DEBUG):
             self._print(_MSG_TYPE_STR_DEBUG, value, *args)
 
+    @staticmethod
+    def close_log_file():
+        if Logger.__log_file != None:
+            Logger.__log_file.close()
+
     def _print(self, msg_type, value, *args):
         assert type(msg_type) is str, 'Value should be a string!'
         assert type(value) is str, 'Value should be a string!'
 
         with Logger.__print_lock:
             format_str = '[{date}] <{type}> "{module}": {value}'.format(
-                date=datetime.datetime.now().isoformat(),
+                date=datetime.datetime.utcnow().isoformat(),
                 module=self._module_name,
                 type=msg_type,
                 value=value)

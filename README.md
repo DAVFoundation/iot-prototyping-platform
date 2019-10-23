@@ -8,20 +8,11 @@ Mooving IoT project.
     * [Raspbian Buster Lite.](https://www.raspberrypi.org/downloads/raspbian/)
     * [Install Raspbian Buster Lite on SD card using Etcher.](https://www.raspberrypi.org/documentation/installation/installing-images/)
 
-2. Enable Linux console output via UART. Open the file `config.txt` on SD card and write at the end:
+2. Enable WIFI and SSH on Raspberry Pi:
+    * [How to enable WIFI and SSH.](https://www.raspberrypi.org/documentation/configuration/wireless/headless.md)
 
-        enable_uart=1
-
-    * [More details about UART on Raspberry Pi.](https://www.raspberrypi.org/documentation/configuration/uart.md)
-
-3. Connect USB to UART bridge to Raspberry Pi pin header. Open UART terminal (Tera Term or Putty) on PC. UART configuration:
-
-        baudrate: 115200, no parity, 1 stop bit
-
-    When boot procedure is finished enter default user credentials:
-
-        login: pi
-        password: raspberry
+3. Connect to Raspberry Pi via SSH:
+    * [More details about SSH on Raspberry Pi.](https://www.raspberrypi.org/documentation/remote-access/ssh/)
 
 4. Enter commands to install Git client:
 
@@ -53,11 +44,7 @@ Mooving IoT project.
         REGISTRY_ID="registry_id"
         DEVICE_ID="device_id"
 
-11. Run script to start Mooving IoT process:
-
-        sudo sh run_project.sh
-
-    or reboot device:
+11. Reboot device:
 
         sudo reboot
 

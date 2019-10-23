@@ -2,20 +2,32 @@
 # Imports
 #***************************************************************************************************
 # Global packages imports
+import datetime
 import os
+import threading
 
 # Local packages imports
-import mooving_iot.utils.logger as logger
 import mooving_iot.project_config as prj_cfg
 
 
 #***************************************************************************************************
-# Module logger
+# Private variables
 #***************************************************************************************************
-_log = logger.Logger(os.path.basename(__file__)[0:-3], prj_cfg.LogLevel.DEBUG)
+_on_exit_callbacks = []
 
 
 #***************************************************************************************************
-# Init startup point
+# Public functions
 #***************************************************************************************************
-_log.debug('__init__.py completed.')
+def on_exit():
+    for callback in _on_exit_callbacks:
+        callback()
+
+
+def exit(n):
+    on_exit()
+    os._exit(n)
+
+
+def register_on_exit(callback):
+    _on_exit_callbacks.append(callback)
