@@ -53,13 +53,15 @@ Mooving IoT project.
         REGISTRY_ID="registry_id"
         DEVICE_ID="device_id"
 
-11. Run script to start Mooving IoT process:
+11. Switch UART interface:
 
-        sudo sh run_project.sh
+        sudo sh switch_UART_interface.sh
 
-    or reboot device:
+    and reboot device:
 
         sudo reboot
+
+    after, turn the switch on the device
 
 ## License
 

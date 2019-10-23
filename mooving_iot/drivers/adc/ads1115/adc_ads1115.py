@@ -16,7 +16,6 @@ import mooving_iot.utils.logger as logger
 import mooving_iot.utils.i2c_lock as i2c_lock
 import mooving_iot.project_config as prj_cfg
 import mooving_iot.utils.exit as utils_exit
-
 import mooving_iot.drivers.adc.adc as adc
 
 
@@ -43,8 +42,8 @@ _i2c_lock_obj = i2c_lock.i2c_get_lock()
 #***************************************************************************************************
 class AdcAds1115(adc.AdcImplementationBase):
     __EXT_BATTERY_CHANNEL_ID = 0
-    __INT_BATTERY_CHANNEL_ID = 3
-    __EXT_BATTERY_CHARGER_CHANNEL_ID = 1
+    __INT_BATTERY_CHANNEL_ID = 1
+    __EXT_BATTERY_CHARGER_CHANNEL_ID = 2
     __EXT_BATTERY_DIVIDER_COEF = (
         (_EXT_BATTERY_DIVIDER_R1 + _EXT_BATTERY_DIVIDER_R2) / _EXT_BATTERY_DIVIDER_R2)
     __EXT_CHARGER_DIVIDER_COEF = (

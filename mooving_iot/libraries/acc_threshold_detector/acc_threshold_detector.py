@@ -36,9 +36,9 @@ class AccAngles:
 
 
 class AccThresholdDetector:
-    DEFAULT_ACC_ANGLE_X = 0
+    DEFAULT_ACC_ANGLE_X = -50
     DEFAULT_ACC_ANGLE_Y = 0
-    DEFAULT_ACC_ANGLE_Z = 90
+    DEFAULT_ACC_ANGLE_Z = 40
     def __init__(self, acc_driver : drv_acc.Acc):
         self._acc_driver = acc_driver
         self._last_acc_data = drv_acc.AccData(0, 0, 0)

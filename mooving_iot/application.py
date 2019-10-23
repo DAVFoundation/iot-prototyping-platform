@@ -34,6 +34,8 @@ import mooving_iot.drivers.led_rgb.led_rgb as drv_led_rgb
 import mooving_iot.drivers.led_rgb.ws1812b.led_ws2812b as drv_led_ws2812b
 import mooving_iot.drivers.adc.adc as drv_adc
 import mooving_iot.drivers.adc.ads1115.adc_ads1115 as drv_adc_ads1115
+import mooving_iot.drivers.GNSS.GNSS as gnss
+import mooving_iot.drivers.GNSS.teseo_liv3f.teseo_liv3f as teseo_liv3f
 
 import mooving_iot.libraries.cloud.cloud as lib_cloud
 import mooving_iot.libraries.cloud.google_cloud_iot.google_cloud_iot as lib_google_cloud_iot
@@ -59,6 +61,7 @@ _relay: Union[drv_relay.Relay, None] = None
 _buzzer: Union[drv_buzzer.Buzzer, None] = None
 _led_rgb: Union[drv_led_rgb.LedRgb, None] = None
 _adc: Union[drv_adc.Adc, None] = None
+_GNSS: Union[gnss.GNSS, None] = None
 
 # Libraries instances
 _device_config = lib_device_config.DeviceConfig.get_instance()
@@ -175,7 +178,6 @@ def _configuration_processing_thread():
             cfg_json = _cloud.wait_for_configuration()
             _log.debug('Configuration json: {}'.format(cfg_json))
 
-            # _telemetry_send_event.set()
     except:
         _log.error(traceback.format_exc())
         utils_exit.exit(1)
@@ -187,6 +189,9 @@ def _threshold_detection_thread():
 
         is_acc_out_of_thr = False
         is_angle_out_of_thr = False
+        is_gps_data_change_detected = False
+        last_longitude = _GNSS.get_longitude()
+        last_latitude = _GNSS.get_latitude()
         is_ext_batt_charging = _adc.ext_batt_is_charging()
         ext_batt_voltage = _adc.get_ext_batt_voltage()
         int_batt_voltage = _adc.get_int_batt_voltage()
@@ -237,11 +242,10 @@ def _threshold_detection_thread():
             # Accelerometer movement and angles threshold detection
             is_acc_out_of_thr_new = _acc_thr_detector.is_acc_out_of_threshold()
             is_angle_out_of_thr_new = _acc_thr_detector.is_angles_out_of_threshold()
-            alarm_active = alarm_active or is_acc_out_of_thr_new or is_angle_out_of_thr_new
+
 
             if (is_acc_out_of_thr_new != is_acc_out_of_thr) and (state != 'unlock'):
                 is_acc_out_of_thr = is_acc_out_of_thr_new
-
                 _log.debug('Acc data out of threshold updated: {}'.format(is_acc_out_of_thr))
                 with _last_telemetry_packet_lock:
                     _last_telemetry_events.append(
@@ -250,6 +254,8 @@ def _threshold_detection_thread():
 
             if (is_angle_out_of_thr_new != is_angle_out_of_thr) and (state != 'unlock'):
                 is_angle_out_of_thr = is_angle_out_of_thr_new
+                angles = _acc_thr_detector.get_angles()
+                _log.debug('Angles are: x: {}, y: {}, z: {}.'.format(angles.x, angles.y, angles.z))
                 _log.debug('Angle out of threshold updated: {}'.format(is_angle_out_of_thr))
                 with _last_telemetry_packet_lock:
                     _last_telemetry_events.append(
@@ -257,13 +263,28 @@ def _threshold_detection_thread():
                 _telemetry_send_event.set()
 
             # GPS threshold detection
-            # TODO: add GPS
+            is_gps_data_change_detected_new, new_longitude, new_latitude = (
+                _GNSS.get_gps_data_change(last_longitude, last_latitude))
+            if ((is_gps_data_change_detected_new != is_gps_data_change_detected)
+                and (state != 'unlock') and (_GNSS.get_valid()==True)):
+                if ((new_longitude != "0.0") and (last_longitude != "0.0")
+                    and (new_latitude != "0.0") and (last_latitude != "0.0")):
+                    is_gps_data_change_detected = is_gps_data_change_detected_new
+                last_longitude = new_longitude
+                last_latitude = new_latitude
+                _log.debug('GPS position has been changed')
+                with _last_telemetry_packet_lock:
+                    _last_telemetry_events.append(
+                        lib_cloud_protocol.GNSSMovementEvent(is_gps_data_change_detected))
+                _telemetry_send_event.set()
+
+            alarm_active = (alarm_active or is_gps_data_change_detected or is_acc_out_of_thr
+                or is_angle_out_of_thr)
 
             # Process alarm if required
             global _is_alarm
             if alarm_active and state != "unlock":
                 current_time_ms = int(time.time() * 1000)
-
                 if alarm_start_time_ms == 0:
                     _is_alarm = True
                     alarm_start_time_ms = current_time_ms
@@ -334,6 +355,11 @@ def _hw_init():
     _led_rgb = drv_led_rgb.LedRgb(LedRgbImplClass,
         hw_cfg.LED_RGB.R_PIN, hw_cfg.LED_RGB.G_PIN, hw_cfg.LED_RGB.B_PIN)
     _led_rgb.start()
+
+    global _GNSS
+    GNSSImplClass = teseo_liv3f.GNSS_Teseo_liv3f
+    _GNSS = gnss.GNSS(GNSSImplClass, hw_cfg.GPS.RST_PIN)
+    _GNSS.start()
 
     global _adc
     AdcImplClass = drv_adc_ads1115.AdcAds1115
@@ -459,8 +485,10 @@ def start():
                 ext_batt=_adc.get_ext_batt_voltage(),
                 int_batt=_adc.get_int_batt_voltage(),
                 ext_batt_charging=_adc.ext_batt_is_charging(),
-                longtitude=0,
-                latitude=0,
+                latitude=_GNSS.get_latitude(),
+                longtitude=_GNSS.get_longitude(),
+                altitude=_GNSS.get_altitude(),
+                heading=_GNSS.get_heading(),
                 alarm=_is_alarm,
                 state=state,
                 event=_last_telemetry_events.pop(0))

@@ -20,6 +20,9 @@ class RELAY:
 class BUZZER:
     PWM_PIN = 18
 
+class GPS:
+    RST_PIN = 17
+
 class LED_RGB:
     R_PIN = adafruit_pinout.D10
     G_PIN = adafruit_pinout.D10

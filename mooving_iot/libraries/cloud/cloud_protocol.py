@@ -70,6 +70,15 @@ class AccMovementEvent(Event):
         }
 
 
+class GNSSMovementEvent(Event):
+    def __init__(self, is_moving_GNSS : bool):
+        self._is_moving_GNSS = is_moving_GNSS
+
+    def to_map(self) -> dict:
+        return {
+            'gnssMoving': 'true' if self._is_moving_GNSS else 'false'
+        }
+
 class AccFallEvent(Event):
     def __init__(self, is_fall : bool):
         self._is_fall = is_fall
@@ -103,15 +112,17 @@ class IntBattEvent(Event):
 class TelemetryPacket:
     def __init__(self,
         device_id, interval, ext_batt, int_batt, ext_batt_charging,
-        longtitude, latitude, alarm, state,
+        longtitude, latitude, altitude, heading, alarm, state,
         event : Event=EmptyEvent()):
         self._device_id = device_id
         self._interval = interval
         self._ext_batt = ext_batt
         self._int_batt = int_batt
         self._ext_batt_charging = ext_batt_charging
-        self._longtitude = longtitude
         self._latitude = latitude
+        self._longtitude = longtitude
+        self._altitude = altitude
+        self._heading = heading
         self._alarm = alarm
         self._state = state
         self._event = event
@@ -128,8 +139,10 @@ class TelemetryPacket:
             'batteryVoltage': round(self._ext_batt, 3),
             'internalBatteryVoltage': round(self._int_batt, 3),
             'charging': 'true' if self._ext_batt_charging else 'false',
-            'longitude': self._longtitude,
             'latitude': self._latitude,
+            'longitude': self._longtitude,
+            'altitude': self._altitude,
+            'heading': self._heading,
             'alarm': 'true' if self._alarm else 'false',
             'state': self._state,
             'event': self._event.to_map()
@@ -139,7 +152,11 @@ class TelemetryPacket:
 class CommandPacket:
     def __init__(self, cmd_json : str):
         self._is_valid = False
-        self._cmd_dict = json.loads(cmd_json)
+        try:
+            self._cmd_dict = json.loads(cmd_json)
+        except:
+            _log.debug('Received unreadable JSON')
+            self._cmd_dict = json.loads("{}")
 
         if ('command' in self._cmd_dict) and ('vehicleId' in self._cmd_dict):
             if self._cmd_dict['command'] == 'lock':
@@ -147,7 +164,7 @@ class CommandPacket:
             elif self._cmd_dict['command'] == 'unlock':
                 self._is_valid = True
             elif self._cmd_dict['command'] == 'unavailable':
-                self._is_valid = True
+             self._is_valid = True
             elif self._cmd_dict['command'] == 'beep':
                 if ('volume' in self._cmd_dict) and (0 <= self._cmd_dict['volume'] <= 100):
                     self._is_valid = True
@@ -157,6 +174,7 @@ class CommandPacket:
             elif self._cmd_dict['command'] == 'set-intervals':
                 if 'states' in self._cmd_dict:
                     self._is_valid = True
+
 
     def is_valid(self) -> bool:
         return self._is_valid

@@ -161,3 +161,4 @@ class DeviceConfig:
         for param_name in config_dict:
             cfg_param = ConfigParam(param_name, config_dict[param_name])
             self.set_param(cfg_param)
+
