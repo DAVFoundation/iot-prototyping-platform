@@ -22,12 +22,12 @@ class LogLevel(enum.IntEnum):
 # Configuration
 #***************************************************************************************************
 # Debug mode ON flag
-DEBUG = True
+DEBUG = False
 
 # Global logging level
 GLOBAL_LOG_LEVEL = LogLevel.DEBUG if DEBUG else LogLevel.INFO
 # Enable logging in file
-FILE_LOG_ENABLE = True
+FILE_LOG_ENABLE = False
 # Log file path and name
 FILE_LOG_PATH = '{current_dir}/../logs'.format(current_dir=os.path.dirname(__file__))
 # Config file path and name

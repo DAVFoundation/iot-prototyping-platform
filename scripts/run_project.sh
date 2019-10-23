@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Google Cloud IoT details.
-CLOUD_REGION="europe-west1"
-PROJECT_ID="open-iot-development"
-REGISTRY_ID="test_001"
-DEVICE_ID="test"
+CLOUD_REGION=""
+PROJECT_ID=""
+REGISTRY_ID=""
+DEVICE_ID=""
 
 # Run Mooving IoT process.
 cd ..

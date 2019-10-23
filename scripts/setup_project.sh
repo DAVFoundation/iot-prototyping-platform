@@ -31,3 +31,6 @@ sudo update-rc.d mooving_iot_autorun.sh defaults
 
 # Enable I2C1 peripheral module.
 sudo raspi-config nonint do_i2c 0
+
+# Disable Linux console on UART.
+sed -i 's/console=serial0,115200 //g' /boot/cmdline.txt
