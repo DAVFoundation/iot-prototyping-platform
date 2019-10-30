@@ -1,6 +1,5 @@
-# Project Title
+# Mooving IoT project
 
-Mooving IoT project.
 
 ## Getting Started
 
