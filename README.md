@@ -32,3 +32,7 @@ The guidebook includes:
 14. Sample connection instructions to the Xiaomi M365 scooter
 
 [📘 Get started here](https://github.com/DAVFoundation/mooving-iot-firmware/blob/master/documentation/IoT_Prototyping_Guidebook.pdf)
+
+### License
+
+The IoT Prototyping Platform is [MIT licensed](./LICENSE).
