@@ -7,7 +7,7 @@ An open platform for rapid prototyping of Micro-Mobility IoT projects. Compatibl
 
 The rapid-prototyping platform allows anyone to create their own connected micro-mobility vehicles, combine it with their own projects or the mooving software projects, and launch their own fleet.
 
-### Getting Started
+## Getting Started
 
 Complete instructions for getting started are available in the IoT Prototyping Guidebook.
 
