@@ -1,4 +1,4 @@
-# Open Mobility Platform IoT
+# IoT Prototyping Platform
 
 <img src="./images/prototype-board.jpg" width="300" align="right" />
 
