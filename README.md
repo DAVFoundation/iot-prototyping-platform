@@ -13,7 +13,7 @@ Complete instructions for getting started are available in the IoT Prototyping G
 
 The guidebook includes:
 
-<img src="./images/omp-iot-book-open.jpg" width="250" align="right" />
+<img src="./images/omp-iot-book-open.jpg" width="350" align="right" />
 
 1. Detailed Bill of Materials
 2. Instructions for the High Power Switch assembly
