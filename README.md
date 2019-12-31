@@ -29,3 +29,5 @@ The guidebook includes:
 12. Connecting Your Device to the Cloud
 13. Firmware Installation
 14. Sample connection instructions to the Xiaomi M365 scooter
+
+[📘 Get started here](https://github.com/DAVFoundation/mooving-iot-firmware/blob/master/documentation/Mooving%20IoT%20Guidebook.pdf)
