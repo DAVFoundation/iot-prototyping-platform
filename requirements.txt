@@ -1,6 +1,6 @@
 paho-mqtt==1.4.0
 pyjwt==1.7.1
-cryptography==2.7
+cryptography==3.2
 tendo==0.2.15
 smbus2==0.2.3
 RPi.GPIO==0.7.0
