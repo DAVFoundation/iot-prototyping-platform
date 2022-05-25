@@ -1,5 +1,5 @@
 paho-mqtt==1.4.0
-pyjwt==1.7.1
+pyjwt==2.4.0
 cryptography==2.7
 tendo==0.2.15
 smbus2==0.2.3
